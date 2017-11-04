@@ -72,8 +72,74 @@ func (cb CommandBuilder) SwitchDynamicCommandMode(mode DynamicCommandMode) error
 	return err
 }
 
-func (cb CommandBuilder) PrintInformationCommand() error {
-	panic("not implements")
+// Specifies which values are valid
+const (
+	PrintInformationKind    = 0x02
+	PrintInformationWidth   = 0x04
+	PrintInformationLength  = 0x08
+	PrintInformationQuality = 0x40 // Not used
+	PrintInformationRecover = 0x80 // always on
+)
+
+// PrintInformationCommandParameter specifies the print information.
+type PrintInformationCommandParameter struct {
+	Flag          int
+	MediaType     MediaType
+	MediaWidth    int
+	MediaLength   int
+	RasterNunmber int
+	StartingPage  bool
+}
+
+var errInvalidMediaType = errors.New("invalid media type")
+var errInvalidMediaWidth = errors.New("invalid media width")
+var errInvalidMediaLength = errors.New("invalid media length")
+var errInvalidRasterNunmber = errors.New("invalid raster number")
+
+// PrintInformationCommand specifies the print information.
+func (cb CommandBuilder) PrintInformationCommand(p PrintInformationCommandParameter) error {
+	if p.Flag&PrintInformationKind != 0 && !p.MediaType.IsValid() {
+		return errInvalidMediaType
+	}
+	if p.MediaWidth <= 0 || p.MediaWidth > 256 {
+		return errInvalidMediaWidth
+	}
+	if p.MediaLength <= 0 || p.MediaLength > 256 {
+		return errInvalidMediaLength
+	}
+	if p.RasterNunmber <= 0 || p.RasterNunmber > 0xFFFFFFFF {
+		return errInvalidRasterNunmber
+	}
+	_, err := cb.Write(commandPrintInfoCommand)
+	if err != nil {
+		return err
+	}
+	buf := [10]byte{}
+	buf[0] = byte(p.Flag | PrintInformationRecover)
+	if p.Flag&PrintInformationKind != 0 {
+		buf[1] = byte(p.MediaType)
+	}
+	if p.Flag&PrintInformationWidth != 0 {
+		buf[2] = byte(p.MediaWidth)
+	}
+	if p.Flag&PrintInformationLength != 0 {
+		buf[3] = byte(p.MediaLength)
+	}
+	if p.Flag&(PrintInformationKind|PrintInformationWidth|PrintInformationLength) != 0 {
+		buf[4] = byte(p.RasterNunmber)
+		buf[5] = byte(p.RasterNunmber >> 8)
+		buf[6] = byte(p.RasterNunmber >> 16)
+		buf[7] = byte(p.RasterNunmber >> 24)
+	}
+	if p.StartingPage {
+		buf[8] = 0
+	} else {
+		buf[8] = 1
+	}
+	buf[9] = 0
+
+	_, err = cb.Write(buf[:])
+	return err
 }
 
 // VariousMode used as parameters of command VariousModeSettings
