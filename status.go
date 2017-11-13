@@ -14,9 +14,30 @@ const (
 	ModelPTP700 = ModelCode('g')
 )
 
+func (mc ModelCode) String() string {
+	switch mc {
+	case ModelPTH500:
+		return "PT-H500"
+	case ModelPTE500:
+		return "PT-E500"
+	case ModelPTP700:
+		return "PT-P700"
+	default:
+		return "unknown"
+	}
+}
+
+func (mc ModelCode) DPI() DPI {
+	return DPI(180)
+}
+func (mc ModelCode) TotalDots() int {
+	return 128
+}
+
 type ErrorInfomation int
 
 const (
+	NoError                 = ErrorInfomation(0)
 	ErrorNoMedia            = ErrorInfomation(1 << 0)
 	ErrorCutterJam          = ErrorInfomation(1 << 2)
 	ErrorWeakBatteries      = ErrorInfomation(1 << 3)
@@ -26,10 +47,33 @@ const (
 	ErrorOverheating        = ErrorInfomation(1 << 13)
 )
 
+func (ei ErrorInfomation) String() string {
+	switch ei {
+	case NoError:
+		return "No error"
+	case ErrorNoMedia:
+		return "No media"
+	case ErrorCutterJam:
+		return "Cutter jam"
+	case ErrorWeakBatteries:
+		return "Weak batteries"
+	case ErrorHighVoltageAdapter:
+		return "High-voltage adapter"
+	case ErrorWrongMedia:
+		return "Wrong media"
+	case ErrorCoverOpen:
+		return "Cover open"
+	case ErrorOverheating:
+		return "Overheating"
+	default:
+		return "Unknown"
+	}
+}
+
 type MediaWidth int
 
 const (
-	NoTape        = MediaType(0)
+	NoTape        = MediaWidth(0)
 	MediaWidth3_5 = MediaWidth(4)
 	MediaWidth6   = MediaWidth(6)
 	MediaWidth9   = MediaWidth(9)
@@ -37,6 +81,27 @@ const (
 	MediaWidth18  = MediaWidth(18)
 	MediaWidth24  = MediaWidth(24)
 )
+
+func (mw MediaWidth) String() string {
+	switch mw {
+	case NoTape:
+		return "No tape"
+	case MediaWidth3_5:
+		return "3.5mm"
+	case MediaWidth6:
+		return "6mm"
+	case MediaWidth9:
+		return "9mm"
+	case MediaWidth12:
+		return "12mm"
+	case MediaWidth18:
+		return "18mm"
+	case MediaWidth24:
+		return "24mm"
+	default:
+		return "Unknown"
+	}
+}
 
 type MediaType int
 
@@ -83,6 +148,30 @@ const (
 	StatusPhaseChange          = StatusType(0x06)
 )
 
+func (st StatusType) String() string {
+	switch st {
+	case StatusReplyToStatusRequest:
+		return "Reply to status request "
+	case StatusPrintingCompleted:
+		return "Printing completed"
+	case StatusErrorOccurred:
+		return "Error occurred"
+	case StatusExitIFMode:
+		return "Exit IF mode "
+	case StatusTurnedOff:
+		return "Turned off"
+	case StatusNotification:
+		return "Notification"
+	case StatusPhaseChange:
+		return "Phase change"
+	default:
+		if 0x07 <= st && st <= 0x20 {
+			return "(Not used)"
+		}
+		return "(Reserved)"
+	}
+}
+
 type NotificationNumber int
 
 const (
@@ -99,6 +188,10 @@ type StatusInformation struct {
 	MediaLength      int
 	Status           StatusType
 	Notification     NotificationNumber
+}
+
+func (si StatusInformation) Media() Media {
+	return RecognizeMedia(si.MediaType, si.MediaWidth)
 }
 
 var errStatusInformationDataTooShort = errors.New("status information data too short")

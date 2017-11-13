@@ -1,5 +1,7 @@
 package braster
 
+import "sync"
+
 // Media supported media types defined at <Raster Command Reference> P14
 type Media int
 
@@ -65,29 +67,53 @@ func RecognizeMedia(typ MediaType, width MediaWidth) Media {
 	return UnknownMedia
 }
 
-type mediaInfoType struct {
-	media                       Media
-	size                        float32
-	printAreaDots               int
-	leftMarginDots              int
-	rightMarginDots             int
-	pageMarginDots              int
-	bytesRasterGraphicsTransfer int
-	minimumMarginDots           int
-	maximumMarginDots           int
-	minimumMarginNoPrecutDots   int
+type MediaInfo struct {
+	Name              string
+	Designation       float32
+	PageSize          float32
+	PrintArea         float32
+	PageMargin        float32
+	MinMargin         float32
+	MaxMargin         float32
+	MinMarginNoPrecut float32
+	MinLength         float32
+	MaxLength         float32
 }
 
-var mediaInfo = []mediaInfoType{
-	mediaInfoType{MediaTZeTape3_5, 3.5, 24, 52, 52, 0, 16, 14, 900, 172},
-	mediaInfoType{MediaTZeTape6, 6, 32, 48, 48, 5, 16, 14, 900, 172},
-	mediaInfoType{MediaTZeTape9, 9, 50, 39, 39, 7, 16, 14, 900, 172},
-	mediaInfoType{MediaTZeTape12, 12, 70, 29, 29, 7, 16, 14, 900, 172},
-	mediaInfoType{MediaTZeTape18, 18, 112, 8, 8, 8, 16, 14, 900, 172},
-	mediaInfoType{MediaTZeTape24, 24, 128, 0, 0, 21, 16, 14, 900, 172},
-	mediaInfoType{MediaHeatShrinkTube6, 6, 28, 50, 50, 6, 16, 14, 900, 172},
-	mediaInfoType{MediaHeatShrinkTube9, 9, 48, 40, 40, 8, 16, 14, 900, 172},
-	mediaInfoType{MediaHeatShrinkTube12, 12, 66, 31, 31, 8, 16, 14, 900, 172},
-	mediaInfoType{MediaHeatShrinkTube18, 18, 106, 11, 11, 10, 16, 14, 900, 172},
-	mediaInfoType{MediaHeatShrinkTube24, 24, 128, 0, 0, 20, 16, 14, 900, 172},
+var mediaInfo = map[Media]*MediaInfo{
+	MediaTZeTape3_5:       &MediaInfo{"3.5mm TZe tape", 3.5, 3.4, 3.4, 0, 2, 127, 24.3, 4.4, 1000},
+	MediaTZeTape6:         &MediaInfo{"6mm TZe tape", 6, 5.9, 4.5, 0.7, 2, 127, 24.3, 4.4, 1000},
+	MediaTZeTape9:         &MediaInfo{"9mm TZe tape", 9, 9, 7.1, 0.98, 2, 127, 24.3, 4.4, 1000},
+	MediaTZeTape12:        &MediaInfo{"12mm TZe tape", 12, 11.9, 9.9, 0.98, 2, 127, 24.3, 4.4, 1000},
+	MediaTZeTape18:        &MediaInfo{"18mm TZe tape", 18, 18.1, 15.8, 1.12, 2, 127, 24.3, 4.4, 1000},
+	MediaTZeTape24:        &MediaInfo{"24mm TZe tape", 24, 24, 18.1, 2.96, 2, 127, 24.3, 4.4, 1000},
+	MediaHeatShrinkTube6:  &MediaInfo{"6mm Heat-Shrink Tube", 6, 5.6, 3.9, 0.8, 2, 127, 24.3, 4.4, 500},
+	MediaHeatShrinkTube9:  &MediaInfo{"9mm Heat-Shrink Tube", 9, 8.7, 6.8, 1.1, 2, 127, 24.3, 4.4, 500},
+	MediaHeatShrinkTube12: &MediaInfo{"12mm Heat-Shrink Tube", 12, 11.6, 9.3, 1.1, 2, 127, 24.3, 4.4, 500},
+	MediaHeatShrinkTube18: &MediaInfo{"18mm Heat-Shrink Tube", 18, 17.8, 14.9, 1.4, 2, 127, 24.3, 4.4, 500},
+	MediaHeatShrinkTube24: &MediaInfo{"24mm Heat-Shrink Tube", 24, 23.7, 18.1, 2.8, 2, 127, 24.3, 4.4, 500},
+}
+var invalidMedia = &MediaInfo{Name: "Unknown"}
+var mediaInfoMu = new(sync.RWMutex)
+
+func (m Media) MediaInfo() *MediaInfo {
+	mediaInfoMu.RLock()
+	defer mediaInfoMu.RUnlock()
+
+	mi := mediaInfo[m]
+	if mi == nil {
+		return invalidMedia
+	}
+	return mi
+}
+
+func (m Media) String() string {
+	return m.MediaInfo().Name
+}
+
+func RegisterMediaInfo(m Media, mi *MediaInfo) {
+	mediaInfoMu.Lock()
+	defer mediaInfoMu.Unlock()
+
+	mediaInfo[m] = mi
 }
